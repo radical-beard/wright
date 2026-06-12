@@ -2889,6 +2889,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ufbx"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "494df1c5a5b77ac978b23ad97bb9ba2b41a9c6f057a87e4ed6ad2d4a354a9a12"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3911,6 +3920,7 @@ dependencies = [
  "serde",
  "tempfile",
  "toml",
+ "ufbx",
 ]
 
 [[package]]

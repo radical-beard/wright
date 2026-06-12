@@ -5,9 +5,11 @@
 //! model (`bestow-anim`: per-bone-name `LocalPose` tracks, lerp/slerp
 //! sampling) so the preview matches engine playback.
 
+mod fbx_load;
 mod gltf_load;
 mod rig;
 
+pub use fbx_load::{load_fbx, load_model};
 pub use gltf_load::load_gltf;
 pub use rig::{Bone, Clip, LocalPose, Rig, Track};
 

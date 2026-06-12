@@ -48,7 +48,7 @@ impl AnimMode {
             speed: 1.0,
             camera,
             scene: SceneRenderer::new(render_state),
-            status: "Open a glTF model to begin (.glb / .gltf)".into(),
+            status: "Open a model to begin (.glb / .gltf / .fbx)".into(),
             section_in: None,
         }
     }
@@ -544,13 +544,13 @@ impl AnimMode {
 
     fn open_model(&mut self) {
         let Some(path) = rfd::FileDialog::new()
-            .set_title("Open glTF model")
-            .add_filter("glTF", &["glb", "gltf"])
+            .set_title("Open model (glTF or FBX)")
+            .add_filter("models", &["glb", "gltf", "fbx"])
             .pick_file()
         else {
             return;
         };
-        match wright_anim::load_gltf(&path) {
+        match wright_anim::load_model(&path) {
             Ok(rig) => {
                 self.status = format!(
                     "{}: {} bones, {} clips",

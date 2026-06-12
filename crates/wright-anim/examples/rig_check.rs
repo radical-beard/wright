@@ -1,4 +1,4 @@
-//! Load a real glTF and print rig stats — sanity-checks the loader against
+//! Load a real glTF/FBX and print rig stats — sanity-checks the loader against
 //! production models.
 //!
 //!     cargo run -p wright-anim --example rig_check -- <model.glb>
@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
     let path = std::env::args()
         .nth(1)
         .ok_or_else(|| anyhow::anyhow!("usage: rig_check <model.glb>"))?;
-    let rig = wright_anim::load_gltf(std::path::Path::new(&path))?;
+    let rig = wright_anim::load_model(std::path::Path::new(&path))?;
     println!("{path}: {} bones", rig.bones.len());
     for clip in &rig.clips {
         println!(
