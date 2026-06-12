@@ -47,7 +47,16 @@ produce those files pleasantly.
 - `crates/wright-bestow` — `export_island` writes `.hgt.png` (16-bit gray),
   `.hgt.toml`, `.ctl.png` (R=rockness, G=autoshader), `.color.png`,
   `.import.toml` sidecars, `.entity.toml` snippet. Atomic writes (tmp +
-  rename) so a watching bestow never half-reads.
+  rename) so a watching bestow never half-reads. Also `SceneDoc` →
+  `[[entities]]` scene TOML for placement mode.
+- `crates/wright-anim` — glTF rig loading (skin joints parent-first,
+  per-property channels merged onto unified key timelines), sampling that
+  mirrors bestow-anim, `AnimMeta` (sockets/events/sections) → bestow TOML.
+- `crates/wright-dungeon` — cell-grid dungeon doc (multi-storey, doors on
+  edges, validation), shell meshgen (auto walls, doorway jambs/lintel/
+  reveals), hand-rolled glb writer (tested by gltf-crate readback),
+  `export_dungeon` → one self-contained `assets/dungeons/<name>/` folder.
+  The shell glb doubles as bestow's `shape = "mesh"` trimesh collider.
 - `crates/wright-app` — eframe app. `modes.rs` is the mode switcher (Island
   live; Animation/Dungeon/Placement are stubs awaiting their slice).
   `island/` owns the document + undo (full-field snapshot at stroke start,

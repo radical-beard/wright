@@ -1,58 +1,59 @@
 # Open questions — dungeon mode
 
-Decisions I made to keep moving; circle back whenever. Each lists the
-default I chose and why.
+Decisions I made to keep moving (the dungeon slice is shipped and
+verified end-to-end against bestow); circle back whenever. Each lists
+what I chose and what changing it would take.
 
-## Authoring model
+## Resolved by implementation — confirm the defaults suit you
 
-1. **Cell size / wall height.** I defaulted to 2 m cells and 4 m walls
-   (classic action-adventure proportions; both are per-dungeon settings in
-   the editor, so this is just the default). Good?
+1. **Cell size / wall height.** Defaults 2 m cells, 4 m walls, 1.4×2.4 m
+   doorways — all per-dungeon settings in the New dialog and project file.
 
-2. **Multi-floor.** The document model supports multiple floors. V1
-   geometry generates each floor as its own shell with stair cells cutting
-   openings between floors. If you mostly want single-floor dungeons with
-   separate scenes per floor (Zelda often does this per-wing), say so and
-   I'll simplify.
+2. **Doors.** Doors sit on an edge between two floor cells and generate a
+   wall-with-doorway there. Locked/boss doors export as *blocking slab
+   entities* (cube visual + static box collider, tagged `door.locked` /
+   `door.boss` + `key.<id>`); **open doorways export as marker entities
+   only** so nothing blocks them when no game logic runs. Gameplay (the
+   actual opening/unlocking) stays in your game's Lua — wright exports
+   data, never behavior. The door template ships inside the dungeon
+   folder and is referenced by full path (I added path-qualified template
+   refs to bestow so two dungeons can both ship a `door` template).
 
-3. **Doors.** Doors live on cell edges between two floor cells and come in
-   kinds: `open` (doorway), `locked` (needs a key id), `boss` (boss key).
-   The exported scene contains a door entity per door so gameplay Lua can
-   open/lock them; the shell mesh leaves a doorway gap. Is key/lock logic
-   something wright should *author* only (ids + placement), with the
-   gameplay behavior living in your game's Lua? That's my assumption —
-   wright exports data, never behavior.
+3. **Enter/exit contract.** The outer game calls
+   `scene.load("assets/dungeons/<name>/<name>.scene.toml")`, teleports the
+   player to the entity tagged `player_spawn`, and reverses on exit.
+   Verified working in bestow including same-frame unload→reload (dungeon
+   reset) — that needed a small engine fix (names now free at despawn
+   time, not at the deferred sync point).
 
-## Export / bestow integration
+4. **Collision.** I added `shape = "mesh"` trimesh colliders to bestow
+   (the documented-but-unimplemented descriptor in physics.md): the
+   runtime cooks a fixed trimesh from the shell glb, same lifecycle as
+   terrain heightfields (re-anchor on move, re-cook on hot reload). The
+   dungeon shell is ONE entity with visuals and collision from the same
+   glb. Note: bestow is not a git repo, so these engine changes are
+   sitting uncommitted in its working tree.
 
-4. **One folder per dungeon.** Export target is
-   `assets/dungeons/<name>/` containing the scene TOML, the shell `.glb`,
-   templates for door/chest/spawn markers, and UUIDv7 sidecars. The scene
-   references everything by game-root-relative paths, so the folder is
-   drop-in but not relocatable after export (bestow asset paths are
-   root-relative). If you want relocatable folders (move/rename after
-   export without re-export), bestow would need scene-relative path
-   resolution — flagging rather than building it speculatively.
+## Genuinely open
 
-5. **Scene switching.** Playing a dungeon "for a section of the game"
-   needs runtime scene switching in bestow. If the engine lacks it, I'll
-   add a minimal `scene.load(path)` Lua API (Rust does the swap, Lua
-   directs it) — replacing the current scene's disk-defined entities,
-   same reconciliation path as hot reload. Confirm that's the semantics
-   you want (vs. additive loading of a dungeon INTO the current world).
+5. **Multi-storey connections.** The model and editor support multiple
+   storeys, but there's no stair *geometry* yet — the Zelda-idiomatic
+   pattern today is stair/ladder marker entities + a game-side teleport.
+   Want real ramp/stair geometry cut between storeys, or is the
+   marker+teleport pattern actually what you'd use anyway?
 
-6. **Dungeon lighting.** Dungeons are indoors; the isles/demo look is
-   sun + sky. I'll expose whatever per-scene light controls bestow has
-   today and otherwise leave lighting to the game. Torch/point-light
-   placement as dungeon entities is on the roadmap, not v1, unless you
-   want it sooner.
+6. **Dungeon lighting.** Exported scenes include a dim "cavern" sky
+   entity so dungeons don't look sunlit. Torch placement is deferred
+   because bestow caps 8 active point lights — if torch-lined halls
+   matter, the engine wants nearest-N light culling (Rust-side, small)
+   before wright grows a torch tool. Worth doing?
 
-## Gameplay contract
+7. **Shell materials.** The shell glb carries flat per-surface colors
+   (floor/wall/ceiling). Texture-mapped dungeon materials (and a paint
+   tool like the island rockness brush) are the natural next slice —
+   which matters more to you: dungeon wall texturing, or stairs (Q5)?
 
-7. **Entering/exiting.** My assumption: the OUTER game decides when to
-   enter (e.g. player touches a dungeon entrance), calls the
-   scene-switch API with the dungeon's scene path, and the dungeon scene
-   contains a `player_spawn`-tagged marker entity where the game places
-   the player. Exiting is the same in reverse (an `exit`-tagged marker +
-   the game switching back). wright just guarantees those markers exist.
-   Match your intent?
+8. **Relocatability.** A dungeon folder is drop-in but not movable after
+   export (asset paths are game-root-relative, per bestow's own
+   convention). Renaming/moving means re-exporting under the new name.
+   Fine, or do you want scene-relative path resolution in bestow?

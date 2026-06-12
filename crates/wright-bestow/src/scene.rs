@@ -62,12 +62,12 @@ impl SceneDoc {
                 e.position[0], e.position[1], e.position[2]
             );
             if e.yaw_deg.abs() > 1e-3 {
-                let half = e.yaw_deg.to_radians() * 0.5;
+                // bestow transform.rotation = Euler XYZ radians (world.rs
+                // local_transform), not a quaternion
                 let _ = writeln!(
                     s,
-                    "rotation = [0.0, {}, 0.0, {}]  # yaw {}°",
-                    half.sin(),
-                    half.cos(),
+                    "rotation = [0.0, {}, 0.0]  # yaw {}°",
+                    e.yaw_deg.to_radians(),
                     e.yaw_deg
                 );
             }
@@ -127,11 +127,12 @@ mod tests {
             .as_array()
             .unwrap();
         assert_eq!(pos[1].as_float(), Some(2.5));
-        // yaw 90° → quat y=sin(45°), w=cos(45°)
+        // yaw 90° → Euler XYZ radians [0, π/2, 0] (bestow's transform format)
         let rot = entities[0]["components"]["transform"]["rotation"]
             .as_array()
             .unwrap();
-        assert!((rot[1].as_float().unwrap() - 0.7071).abs() < 1e-3);
+        assert_eq!(rot.len(), 3);
+        assert!((rot[1].as_float().unwrap() - std::f64::consts::FRAC_PI_2).abs() < 1e-3);
         // unnamed entity omits name, keeps transform
         assert!(entities[1].get("name").is_none());
         assert!(entities[1].get("rotation").is_none());

@@ -137,13 +137,13 @@ pub fn export_dungeon(
         let cb = doc.cell_center(door.floor, door.b.0, door.b.1);
         let (ex, ez) = ((ca[0] + cb[0]) * 0.5, (ca[2] + cb[2]) * 0.5);
         // slab is thin along Z at yaw 0 → doors crossing Z stay at 0,
-        // doors crossing X turn 90°
+        // doors crossing X turn 90°. bestow transform.rotation = Euler XYZ
+        // radians (world.rs local_transform), not a quaternion.
         let crossing_x = door.a.0 != door.b.0;
-        let (qy, qw) = if crossing_x {
-            let h = std::f32::consts::FRAC_PI_4; // 90° / 2
-            (h.sin(), h.cos())
+        let yaw = if crossing_x {
+            std::f32::consts::FRAC_PI_2
         } else {
-            (0.0, 1.0)
+            0.0
         };
         let mut tags = vec!["door".to_string(), format!("door.{}", door.kind.label())];
         if let DoorKind::Locked { key } = &door.kind {
@@ -163,7 +163,7 @@ pub fn export_dungeon(
         let _ = writeln!(s, "tags = [{tags_toml}]");
         let _ = writeln!(s, "[entities.components.transform]");
         let _ = writeln!(s, "position = [{ex}, {y}, {ez}]", y = base_y + dh * 0.5);
-        let _ = writeln!(s, "rotation = [0.0, {qy}, 0.0, {qw}]\n");
+        let _ = writeln!(s, "rotation = [0.0, {yaw}, 0.0]\n");
     }
 
     for e in &doc.entities {
@@ -190,8 +190,7 @@ pub fn export_dungeon(
             e.position[0], e.position[1], e.position[2]
         );
         if e.yaw_deg.abs() > 1e-3 {
-            let h = e.yaw_deg.to_radians() * 0.5;
-            let _ = writeln!(s, "rotation = [0.0, {}, 0.0, {}]", h.sin(), h.cos());
+            let _ = writeln!(s, "rotation = [0.0, {}, 0.0]", e.yaw_deg.to_radians());
         }
         let _ = writeln!(s);
     }
@@ -344,7 +343,8 @@ mod tests {
         let rot = locked["components"]["transform"]["rotation"]
             .as_array()
             .unwrap();
-        assert!((rot[1].as_float().unwrap() - 0.7071).abs() < 1e-3);
+        assert_eq!(rot.len(), 3, "Euler XYZ radians, not a quaternion");
+        assert!((rot[1].as_float().unwrap() - std::f64::consts::FRAC_PI_2).abs() < 1e-3);
 
         // open doorway: marker only, no template
         let arch = by_name("west_arch");
