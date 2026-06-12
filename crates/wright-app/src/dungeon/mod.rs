@@ -89,6 +89,21 @@ struct Hover {
 
 const DOOR_KINDS: [&str; 3] = ["open", "locked", "boss"];
 
+/// First `{stem}_{n}` not taken by any door or entity (or reserved) —
+/// deletions must never make the next placement collide.
+fn free_name(stem: &str, doc: &DungeonDoc) -> String {
+    let taken = |n: &str| {
+        n == "sky"
+            || n == "shell"
+            || doc.doors.iter().any(|d| d.name == n)
+            || doc.entities.iter().any(|e| e.name == n)
+    };
+    (1..)
+        .map(|i| format!("{stem}_{i}"))
+        .find(|n| !taken(n))
+        .unwrap()
+}
+
 impl DungeonMode {
     pub fn new(render_state: RenderState) -> Self {
         let doc = DungeonDoc::new("dungeon", 32, 32);
@@ -132,8 +147,12 @@ impl DungeonMode {
     }
 
     /// Shell mesh → tinted vertices through the terrain preview pipeline.
+    /// Storeys above the active one are hidden so editing storey N is never
+    /// occluded by floors stacked above it.
     fn remesh(&mut self) {
-        let mesh = meshgen::generate(&self.doc);
+        let mut preview = self.doc.clone();
+        preview.floors.truncate(self.storey + 1);
+        let mesh = meshgen::generate(&preview);
         let tint = |prim: &meshgen::Primitive, color: [f32; 3]| {
             let vertices: Vec<Vertex> = prim
                 .positions
@@ -221,8 +240,11 @@ impl DungeonMode {
                         if ui
                             .selectable_label(self.storey == i, format!("{i}"))
                             .clicked()
+                            && self.storey != i
                         {
                             self.storey = i;
+                            self.selection = None;
+                            self.needs_remesh = true; // preview shows storeys <= active
                         }
                     }
                     if ui.button("+").clicked() {
@@ -377,6 +399,15 @@ impl DungeonMode {
                         }
                     }
                 });
+                if let Some(dir) = &state.last_dungeon_dir
+                    && !dir.ends_with("assets/dungeons")
+                {
+                    ui.colored_label(
+                        Color32::from_rgb(230, 190, 60),
+                        "⚠ pick the game's assets/dungeons folder — exported scene
+paths are assets/dungeons/<name>/… and won't resolve elsewhere",
+                    );
+                }
                 let can = state.last_dungeon_dir.is_some()
                     && !issues.iter().any(|i| i.error);
                 if ui.add_enabled(can, egui::Button::new("Export dungeon")).clicked() {
@@ -392,7 +423,11 @@ impl DungeonMode {
                             self.last_export = Some(report);
                             self.export_error = None;
                         }
-                        Err(e) => self.export_error = Some(format!("{e:#}")),
+                        Err(e) => {
+                            self.export_error = Some(format!("{e:#}"));
+                            self.last_export = None; // never show a stale success
+                            self.status = String::new();
+                        }
                     }
                 }
                 if let Some(err) = &self.export_error {
@@ -415,11 +450,12 @@ impl DungeonMode {
     fn door_editor(&mut self, ui: &mut egui::Ui, i: usize) {
         ui.heading("Door");
         let mut remove = false;
+        let mut changed = false;
         {
             let door = &mut self.doc.doors[i];
             ui.horizontal(|ui| {
                 ui.label("name");
-                ui.text_edit_singleline(&mut door.name);
+                changed |= ui.text_edit_singleline(&mut door.name).changed();
             });
             ui.horizontal(|ui| {
                 let mut kind_idx = match door.kind {
@@ -439,12 +475,13 @@ impl DungeonMode {
                         },
                         _ => DoorKind::Boss,
                     };
+                    changed = true;
                 }
             });
             if let DoorKind::Locked { key } = &mut door.kind {
                 ui.horizontal(|ui| {
                     ui.label("key");
-                    ui.text_edit_singleline(key);
+                    changed |= ui.text_edit_singleline(key).changed();
                 });
             }
             ui.horizontal(|ui| {
@@ -460,22 +497,24 @@ impl DungeonMode {
             self.doc.doors.remove(i);
             self.selection = None;
             self.touch(); // doorway geometry goes away
+        } else if changed {
+            self.dirty_since_save = true;
         }
-        self.dirty_since_save = true;
     }
 
     fn entity_editor(&mut self, ui: &mut egui::Ui, i: usize) {
         ui.heading("Entity");
         let mut remove = false;
+        let mut changed = false;
         {
             let e = &mut self.doc.entities[i];
             ui.horizontal(|ui| {
                 ui.label("name");
-                ui.text_edit_singleline(&mut e.name);
+                changed |= ui.text_edit_singleline(&mut e.name).changed();
             });
             ui.horizontal(|ui| {
                 ui.label("template");
-                ui.text_edit_singleline(&mut e.template);
+                changed |= ui.text_edit_singleline(&mut e.template).changed();
             });
             let mut tags = e.tags.join(", ");
             ui.horizontal(|ui| {
@@ -491,16 +530,20 @@ impl DungeonMode {
             ui.horizontal(|ui| {
                 ui.label("pos");
                 for c in 0..3 {
-                    ui.add(
-                        egui::DragValue::new(&mut e.position[c])
-                            .speed(0.1)
-                            .max_decimals(2),
-                    );
+                    changed |= ui
+                        .add(
+                            egui::DragValue::new(&mut e.position[c])
+                                .speed(0.1)
+                                .max_decimals(2),
+                        )
+                        .changed();
                 }
             });
             ui.horizontal(|ui| {
                 ui.label("yaw");
-                ui.add(egui::DragValue::new(&mut e.yaw_deg).speed(1.0).suffix("°"));
+                changed |= ui
+                    .add(egui::DragValue::new(&mut e.yaw_deg).speed(1.0).suffix("°"))
+                    .changed();
                 if ui.button("✕ delete").clicked() {
                     remove = true;
                 }
@@ -512,8 +555,10 @@ impl DungeonMode {
         if remove {
             self.doc.entities.remove(i);
             self.selection = None;
+            self.dirty_since_save = true;
+        } else if changed {
+            self.dirty_since_save = true;
         }
-        self.dirty_since_save = true;
     }
 
     // ── viewport ──────────────────────────────────────────────────────────
@@ -610,11 +655,27 @@ impl DungeonMode {
                             let f = &mut self.doc.floors[self.storey];
                             if f.get(h.cell.0 as i64, h.cell.1 as i64) != Cell::Empty {
                                 f.set(h.cell.0, h.cell.1, Cell::Empty);
-                                // drop doors that lost a floor cell
+                                // drop doors that lost a floor cell —
+                                // remembering the selected door by identity,
+                                // since retain shifts indices
                                 let storey = self.storey;
+                                let selected_door = match self.selection {
+                                    Some(Selection::Door(i)) => {
+                                        self.doc.doors.get(i).map(|d| (d.floor, d.a, d.b))
+                                    }
+                                    _ => None,
+                                };
                                 self.doc.doors.retain(|d| {
                                     d.floor != storey || (d.a != h.cell && d.b != h.cell)
                                 });
+                                if let Some(key) = selected_door {
+                                    self.selection = self
+                                        .doc
+                                        .doors
+                                        .iter()
+                                        .position(|d| (d.floor, d.a, d.b) == key)
+                                        .map(Selection::Door);
+                                }
                                 self.touch();
                             }
                         }
@@ -680,7 +741,7 @@ impl DungeonMode {
             },
             _ => DoorKind::Boss,
         };
-        let name = format!("door_{}", self.doc.doors.len() + 1);
+        let name = free_name("door", &self.doc);
         self.doc.doors.push(Door {
             name,
             floor: self.storey,
@@ -694,11 +755,12 @@ impl DungeonMode {
 
     fn place_entity(&mut self, h: Hover) {
         let template = self.template.trim().to_string();
-        let name = if template.is_empty() {
-            format!("marker_{}", self.doc.entities.len() + 1)
+        let stem = if template.is_empty() {
+            "marker"
         } else {
-            format!("{template}_{}", self.doc.entities.len() + 1)
+            template.as_str()
         };
+        let name = free_name(stem, &self.doc);
         self.doc.entities.push(DungeonEntity {
             name,
             template,
@@ -715,12 +777,16 @@ impl DungeonMode {
     }
 
     fn select_at(&mut self, h: Hover) {
-        // nearest entity within 1.5 m, else door on the hovered edge
+        // nearest entity ON THIS STOREY within 1.5 m, else door on the
+        // hovered edge
+        let base = self.storey as f32 * self.doc.floor_height;
+        let band = self.doc.wall_height;
         let best_entity = self
             .doc
             .entities
             .iter()
             .enumerate()
+            .filter(|(_, e)| e.position[1] >= base - 0.5 && e.position[1] <= base + band)
             .map(|(i, e)| {
                 let d = ((e.position[0] - h.world.x).powi(2) + (e.position[2] - h.world.z).powi(2))
                     .sqrt();
@@ -735,13 +801,12 @@ impl DungeonMode {
         }
         if h.across.0 >= 0 && h.across.1 >= 0 {
             let across = (h.across.0 as usize, h.across.1 as usize);
-            if let Some(door) = self.doc.door_between(self.storey, h.cell, across) {
-                let idx = self
-                    .doc
-                    .doors
-                    .iter()
-                    .position(|d| d.name == door.name)
-                    .unwrap();
+            let storey = self.storey;
+            let idx = self.doc.doors.iter().position(|d| {
+                d.floor == storey
+                    && ((d.a == h.cell && d.b == across) || (d.a == across && d.b == h.cell))
+            });
+            if let Some(idx) = idx {
                 self.selection = Some(Selection::Door(idx));
                 return;
             }

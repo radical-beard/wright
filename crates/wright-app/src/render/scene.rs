@@ -55,8 +55,9 @@ struct GpuChunk {
     vertices: wgpu::Buffer,
     indices: wgpu::Buffer,
     index_count: u32,
-    /// Capacity in vertices, so rewrites can reuse the allocation.
+    /// Capacities, so rewrites can reuse the allocations.
     vertex_capacity: usize,
+    index_capacity: usize,
 }
 
 pub struct SceneRenderer {
@@ -303,19 +304,26 @@ impl SceneRenderer {
 
     /// Replace the whole scene with arbitrary mesh slices (dungeon shells)
     /// drawn through the terrain pipeline — slices are pre-tinted via the
-    /// vertex `tint`/`material` fields. Keyed by slice index.
+    /// vertex `tint`/`material` fields. Keyed by slice index; existing GPU
+    /// buffers are reused across calls (paint-drag remeshes every frame).
     pub fn set_custom_mesh(&mut self, slices: Vec<(Vec<Vertex>, Vec<u32>)>) {
-        self.chunks.clear();
+        let count = slices.len();
         for (i, (vertices, indices)) in slices.into_iter().enumerate() {
+            let coord = (usize::MAX - i, usize::MAX);
             if indices.is_empty() {
+                self.chunks.remove(&coord);
                 continue;
             }
             self.upload_chunk(ChunkMesh {
-                coord: (usize::MAX - i, usize::MAX),
+                coord,
                 vertices,
                 indices,
             });
         }
+        // drop leftover slices from a previous, larger set (slice i is
+        // keyed (usize::MAX - i, usize::MAX))
+        self.chunks
+            .retain(|&(x, z), _| z != usize::MAX || (usize::MAX - x) < count);
     }
 
     /// Re-mesh and re-upload only the chunks a dirty region touches.
@@ -331,10 +339,13 @@ impl SceneRenderer {
         let device = &self.render_state.device;
         let queue = &self.render_state.queue;
         match self.chunks.get_mut(&mesh.coord) {
-            Some(gpu) if gpu.vertex_capacity >= mesh.vertices.len() => {
+            Some(gpu)
+                if gpu.vertex_capacity >= mesh.vertices.len()
+                    && gpu.index_capacity >= mesh.indices.len() =>
+            {
                 queue.write_buffer(&gpu.vertices, 0, bytemuck::cast_slice(&mesh.vertices));
-                // index topology only changes with resolution; vertices
-                // suffice for sculpt updates
+                queue.write_buffer(&gpu.indices, 0, bytemuck::cast_slice(&mesh.indices));
+                gpu.index_count = mesh.indices.len() as u32;
             }
             _ => {
                 let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -345,7 +356,7 @@ impl SceneRenderer {
                 let indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("chunk idx"),
                     contents: bytemuck::cast_slice(&mesh.indices),
-                    usage: wgpu::BufferUsages::INDEX,
+                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
                 });
                 self.chunks.insert(
                     mesh.coord,
@@ -354,6 +365,7 @@ impl SceneRenderer {
                         indices,
                         index_count: mesh.indices.len() as u32,
                         vertex_capacity: mesh.vertices.len(),
+                        index_capacity: mesh.indices.len(),
                     },
                 );
             }

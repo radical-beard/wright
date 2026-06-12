@@ -305,12 +305,18 @@ impl PlacementMode {
 
     fn place(&mut self, hit: Vec3) {
         let template = self.template.trim().to_string();
-        self.counter += 1;
-        let name = if template.is_empty() {
-            format!("entity_{}", self.counter)
+        let stem = if template.is_empty() {
+            "entity"
         } else {
-            format!("{template}_{}", self.counter)
+            template.as_str()
         };
+        // first free suffix — deletions and project reloads must never
+        // produce a duplicate name (bestow scene loads fail on name_taken)
+        let name = (self.counter + 1..)
+            .map(|i| format!("{stem}_{i}"))
+            .find(|n| !self.doc.entities.iter().any(|e| &e.name == n))
+            .unwrap();
+        self.counter += 1;
         if !template.is_empty() && !self.recent_templates.contains(&template) {
             self.recent_templates.insert(0, template.clone());
             self.recent_templates.truncate(8);

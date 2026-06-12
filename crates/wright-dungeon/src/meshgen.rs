@@ -165,8 +165,7 @@ fn wall_quad(prim: &mut Primitive, start: Vec3, dir: Vec3, len: f32, y0: f32, y1
 /// Wall with a centred doorway opening: left jamb, right jamb, lintel.
 fn doorway_wall(doc: &DungeonDoc, prim: &mut Primitive, start: Vec3, dir: Vec3, y0: f32, y1: f32) {
     let cs = doc.cell_size;
-    let dw = doc.door_width.clamp(0.4, cs - 0.2);
-    let dh = doc.door_height.clamp(1.0, doc.wall_height - 0.1);
+    let (dw, dh) = doc.door_dims();
     let jamb = (cs - dw) * 0.5;
 
     wall_quad(prim, start, dir, jamb, y0, y1); // left jamb
@@ -191,8 +190,7 @@ fn doorway_wall(doc: &DungeonDoc, prim: &mut Primitive, start: Vec3, dir: Vec3, 
 /// viewer side, so nothing fights.
 fn doorway_reveals(doc: &DungeonDoc, prim: &mut Primitive, edge_start: Vec3, dir: Vec3, y0: f32) {
     let cs = doc.cell_size;
-    let dw = doc.door_width.clamp(0.4, cs - 0.2);
-    let dh = doc.door_height.clamp(1.0, doc.wall_height - 0.1);
+    let (dw, dh) = doc.door_dims();
     let jamb = (cs - dw) * 0.5;
     let inward = Vec3::new(-dir.z, 0.0, dir.x);
 

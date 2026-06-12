@@ -181,6 +181,18 @@ impl DungeonDoc {
         (x < f.width && z < f.depth).then_some((x, z))
     }
 
+    /// Doorway (width, height) clamped to fit the cell and wall — total
+    /// order is enforced so degenerate sizes from hand-edited projects can
+    /// never panic `f32::clamp`.
+    pub fn door_dims(&self) -> (f32, f32) {
+        let max_w = (self.cell_size - 0.2).max(0.4);
+        let max_h = (self.wall_height - 0.1).max(1.0);
+        (
+            self.door_width.clamp(0.4, max_w),
+            self.door_height.clamp(1.0, max_h),
+        )
+    }
+
     /// Door on the edge between cells `a` and `b`, if any.
     pub fn door_between(
         &self,
@@ -194,18 +206,39 @@ impl DungeonDoc {
     }
 
     /// Problems that would make the exported dungeon broken (errors) or
-    /// surprising (warnings).
+    /// surprising (warnings). Name checks cover the whole scene namespace:
+    /// doors + entities + the reserved `sky`/`shell` entities the export
+    /// always emits — bestow's scene load hard-fails on `name_taken`.
     pub fn validate(&self) -> Vec<Issue> {
         let mut issues = Vec::new();
-        let mut names = HashSet::new();
+        let mut names: HashSet<&str> = HashSet::from(["sky", "shell"]);
+        let mut edges = HashSet::new();
 
         if self.floors.iter().map(Floor::floor_count).sum::<usize>() == 0 {
             issues.push(Issue::error("dungeon has no floor cells"));
         }
 
+        for (what, name) in self
+            .doors
+            .iter()
+            .map(|d| ("door", d.name.as_str()))
+            .chain(self.entities.iter().map(|e| ("entity", e.name.as_str())))
+        {
+            if !name.is_empty() && !names.insert(name) {
+                issues.push(Issue::error(format!(
+                    "duplicate {what} name `{name}` (names are unique per scene; \
+                     `sky` and `shell` are reserved)"
+                )));
+            }
+        }
+
         for door in &self.doors {
-            if !names.insert(&door.name) {
-                issues.push(Issue::error(format!("duplicate door name `{}`", door.name)));
+            let key = (door.floor, door.a.min(door.b), door.a.max(door.b));
+            if !edges.insert(key) {
+                issues.push(Issue::error(format!(
+                    "two doors share the edge {:?}–{:?} on storey {}",
+                    door.a, door.b, door.floor
+                )));
             }
             let Some(floor) = self.floors.get(door.floor) else {
                 issues.push(Issue::error(format!(
@@ -283,7 +316,32 @@ impl DungeonDoc {
     }
 
     pub fn load(path: &std::path::Path) -> anyhow::Result<Self> {
-        Ok(toml::from_str(&std::fs::read_to_string(path)?)?)
+        let doc: Self = toml::from_str(&std::fs::read_to_string(path)?)?;
+        // Structural checks: a hand-edited project must not panic the
+        // editor (indexing floors[0], cells[z*w+x], dividing by sizes).
+        anyhow::ensure!(!doc.floors.is_empty(), "project has no storeys");
+        for (i, f) in doc.floors.iter().enumerate() {
+            anyhow::ensure!(
+                f.width >= 1 && f.depth >= 1 && f.cells.len() == f.width * f.depth,
+                "storey {i}: cells length {} does not match {}x{}",
+                f.cells.len(),
+                f.width,
+                f.depth
+            );
+        }
+        anyhow::ensure!(
+            doc.cell_size.is_finite() && doc.cell_size >= 0.5,
+            "cell_size must be at least 0.5 m"
+        );
+        anyhow::ensure!(
+            doc.wall_height.is_finite() && doc.wall_height >= 1.0,
+            "wall_height must be at least 1 m"
+        );
+        anyhow::ensure!(
+            doc.floor_height.is_finite() && doc.floor_height >= doc.wall_height,
+            "floor_height must be >= wall_height"
+        );
+        Ok(doc)
     }
 }
 
