@@ -5,6 +5,7 @@
 mod anim;
 mod island;
 mod modes;
+mod placement;
 mod render;
 mod state;
 
@@ -12,6 +13,7 @@ use anim::AnimMode;
 use eframe::egui;
 use island::IslandMode;
 use modes::ModeId;
+use placement::PlacementMode;
 use state::AppState;
 
 fn main() -> eframe::Result {
@@ -34,6 +36,7 @@ struct WrightApp {
     state: AppState,
     island: IslandMode,
     anim: AnimMode,
+    placement: PlacementMode,
     active: ModeId,
 }
 
@@ -45,11 +48,13 @@ impl WrightApp {
             .expect("wright needs the wgpu backend (eframe Renderer::Wgpu)");
         let state = AppState::load();
         let island = IslandMode::new(render_state.clone(), &state);
-        let anim = AnimMode::new(render_state);
+        let anim = AnimMode::new(render_state.clone());
+        let placement = PlacementMode::new(render_state);
         Self {
             state,
             island,
             anim,
+            placement,
             active: ModeId::Island,
         }
     }
@@ -75,6 +80,7 @@ impl eframe::App for WrightApp {
         match self.active {
             ModeId::Island => self.island.update(ui, &mut self.state),
             ModeId::Animation => self.anim.update(ui, &mut self.state),
+            ModeId::Placement => self.placement.update(ui, &mut self.state),
             other => modes::stub_panel(ui, other),
         }
     }

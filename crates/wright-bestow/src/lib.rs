@@ -15,6 +15,9 @@
 //! Writers are atomic-ish (write to `.tmp`, rename) so a running bestow
 //! watching the assets dir never half-reads a file mid-hot-reload.
 
+mod scene;
+pub use scene::{PlacedEntity, SceneDoc};
+
 use anyhow::{Context, Result};
 use std::fmt::Write as _;
 use std::fs;
