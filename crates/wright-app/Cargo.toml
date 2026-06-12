@@ -22,6 +22,7 @@ env_logger = "0.11"
 bytemuck = { version = "1", features = ["derive"] }
 rfd = "0.17"
 dirs = "6"
+wright-anim = { version = "0.1.0", path = "../wright-anim" }
 
 [dev-dependencies]
 tempfile = "3"

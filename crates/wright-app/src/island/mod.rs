@@ -440,6 +440,7 @@ impl IslandMode {
                     brush,
                     brush_color,
                     time: self.time,
+                    water: true,
                 };
                 self.scene.render(px_w, px_h, &params);
                 if let Some(id) = self.scene.texture_id {

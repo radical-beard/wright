@@ -27,7 +27,23 @@ editing UI of its own.
   re-export), and a ready-to-paste `[[entities]]` scene snippet
 
 Sculpt with a running bestow pointed at the same assets dir and hot reload
-shows your island in-game seconds after each export.
+shows your island in-game seconds after each export. Existing bestow
+islands (including ones originally dumped from argh) re-import for editing
+via their `.hgt.toml`.
+
+**Animation mode** — load a glTF rig and author the metadata bestow needs:
+
+- Preview playback on a bone-line skeleton: scrub, play/pause (space),
+  loop, speed; click a joint (or the tree) to select a bone
+- Sockets: named attachment points on bones with offset editing, drawn as
+  gizmo tripods (`attach_socket` targets for bestow templates)
+- Event tags: named events with payloads at exact clip times
+  (`[[animation.clips.events]]`) — gold markers on the timeline
+- Clip splitting: mark in/out to cut sections (`[[animation.clips.sections]]`)
+  with per-section `can_end` for player-cancellable combos — teal spans on
+  the timeline
+- Metadata saves as `.wrightanim` (TOML) and exports as bestow
+  `<model>.anim.toml`
 
 ## Controls
 

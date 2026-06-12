@@ -36,14 +36,6 @@ pub fn stub_panel(root: &mut eframe::egui::Ui, mode: ModeId) {
             ui.heading(format!("{} — designed, not yet built", mode.label()));
             ui.add_space(12.0);
             let body: &[&str] = match mode {
-                ModeId::Animation => &[
-                    "Planned (see ROADMAP.md):",
-                    "• Socket placement on skeleton bones (hand_r, spine…) with live gizmo",
-                    "• Animation event tags — emit events at exact clip times (footstep, hit)",
-                    "• Clip splitting — cut source clips into combo segments with early-out points",
-                    "• Preview playback — scrub, loop, speed, skeleton overlay",
-                    "Exports: clip metadata + .animgraph.toml fragments + glTF sub-asset refs.",
-                ],
                 ModeId::Dungeon => &[
                     "Planned (see ROADMAP.md):",
                     "• Room/corridor layout on a grid with prefab room pieces",
@@ -58,7 +50,8 @@ pub fn stub_panel(root: &mut eframe::egui::Ui, mode: ModeId) {
                     "• Snap-to-terrain, alignment, scatter brush",
                     "Exports: [[entities]] scene TOML blocks.",
                 ],
-                ModeId::Island => &[],
+                // both fully implemented — never routed here
+                ModeId::Island | ModeId::Animation => &[],
             };
             for line in body {
                 ui.label(*line);

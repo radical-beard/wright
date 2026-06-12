@@ -2,11 +2,13 @@
 //! them in bestow's formats. Bestow stays editor-free (its D-005: the game
 //! is the visualizer); wright is where humans sculpt.
 
+mod anim;
 mod island;
 mod modes;
 mod render;
 mod state;
 
+use anim::AnimMode;
 use eframe::egui;
 use island::IslandMode;
 use modes::ModeId;
@@ -31,6 +33,7 @@ fn main() -> eframe::Result {
 struct WrightApp {
     state: AppState,
     island: IslandMode,
+    anim: AnimMode,
     active: ModeId,
 }
 
@@ -41,10 +44,12 @@ impl WrightApp {
             .clone()
             .expect("wright needs the wgpu backend (eframe Renderer::Wgpu)");
         let state = AppState::load();
-        let island = IslandMode::new(render_state, &state);
+        let island = IslandMode::new(render_state.clone(), &state);
+        let anim = AnimMode::new(render_state);
         Self {
             state,
             island,
+            anim,
             active: ModeId::Island,
         }
     }
@@ -69,6 +74,7 @@ impl eframe::App for WrightApp {
 
         match self.active {
             ModeId::Island => self.island.update(ui, &mut self.state),
+            ModeId::Animation => self.anim.update(ui, &mut self.state),
             other => modes::stub_panel(ui, other),
         }
     }

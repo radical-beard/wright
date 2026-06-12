@@ -1,0 +1,16 @@
+[package]
+name = "wright-anim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Animation rig document: glTF skeleton/clip loading, sockets, event tags, clip splitting, bestow export"
+
+[dependencies]
+glam.workspace = true
+gltf = "1.4"
+anyhow.workspace = true
+serde.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

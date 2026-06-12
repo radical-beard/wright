@@ -18,16 +18,21 @@ it is explicitly not exhaustive.
 - [ ] N-layer splat painting targeting bestow's full 16-layer terrain schema
 - [ ] Live re-export on stroke commit ("link mode": bestow hot-reloads as you sculpt)
 
-## Animation mode
+## Animation mode (shipped, evolving)
 
-- [ ] Load skeletal models (glTF first; FBX via ufbx parity later)
-- [ ] Preview playback: scrub, loop, speed, bone overlay
-- [ ] Socket placement: select bone, place named socket with offset gizmo,
+- [x] Load skeletal models (glTF; FBX via ufbx parity later)
+- [x] Preview playback: scrub, loop, speed, bone overlay, joint picking
+- [x] Socket placement: select bone, add named socket with offset,
       export attachment metadata (`attach_socket` ready)
-- [ ] Event tagging: markers on the clip timeline → bestow
+- [x] Event tagging: markers on the clip timeline → bestow
       `[[animation.clips.events]]` (name, time, payload)
-- [ ] Clip splitting: cut source clips into named segments
-      (`[[animation.clips.sections]]`) for combos with early-out points
+- [x] Clip splitting: mark in/out into named sections
+      (`[[animation.clips.sections]]`) with `can_end` early-out points
+- [ ] Event payload editor (key/value rows; today payloads load/save but
+      aren't editable in the UI)
+- [ ] Skinned mesh preview (today: bone lines only)
+- [ ] Socket rotation gizmo (today: offset only)
+- [ ] FBX import via ufbx (bestow D-012 parity)
 - [ ] Blend-tree / animgraph authoring → `.animgraph.toml`
 
 ## Dungeon mode

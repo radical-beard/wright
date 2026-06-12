@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/wright-field",
+    "crates/wright-anim",
     "crates/wright-bestow",
     "crates/wright-app",
 ]
@@ -13,6 +14,7 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 wright-field = { path = "crates/wright-field" }
+wright-anim = { path = "crates/wright-anim" }
 wright-bestow = { path = "crates/wright-bestow" }
 glam = "0.33"
 serde = { version = "1", features = ["derive"] }

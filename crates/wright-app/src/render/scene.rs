@@ -30,6 +30,25 @@ pub struct SceneParams {
     pub brush: glam::Vec4,
     pub brush_color: [f32; 4],
     pub time: f32,
+    /// Draw the sea plane (island mode) — off for rig preview.
+    pub water: bool,
+}
+
+/// One endpoint of a debug/overlay line (bones, grids, gizmos).
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct LineVertex {
+    pub position: [f32; 3],
+    pub color: [f32; 4],
+}
+
+impl LineVertex {
+    pub fn new(p: glam::Vec3, color: [f32; 4]) -> Self {
+        Self {
+            position: p.to_array(),
+            color,
+        }
+    }
 }
 
 struct GpuChunk {
@@ -44,9 +63,13 @@ pub struct SceneRenderer {
     render_state: RenderState,
     terrain_pipeline: wgpu::RenderPipeline,
     water_pipeline: wgpu::RenderPipeline,
+    line_pipeline: wgpu::RenderPipeline,
     globals_buf: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
     water_vbuf: wgpu::Buffer,
+    lines_vbuf: Option<wgpu::Buffer>,
+    lines_capacity: usize,
+    lines_count: u32,
     chunks: HashMap<(usize, usize), GpuChunk>,
     color: Option<wgpu::Texture>,
     depth: Option<wgpu::TextureView>,
@@ -162,6 +185,45 @@ impl SceneRenderer {
             primitive: wgpu::PrimitiveState::default(), // no cull: visible from below
             depth_stencil: Some(wgpu::DepthStencilState {
                 depth_write_enabled: Some(false), // translucent
+                ..depth_state.clone()
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+
+        let line_vertex_layout = wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<LineVertex>() as u64,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x4],
+        };
+        let line_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("lines"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_line"),
+                compilation_options: Default::default(),
+                buffers: &[line_vertex_layout],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_line"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: TARGET_FORMAT,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::LineList,
+                ..Default::default()
+            },
+            // overlay: depth-tested but not written (bias is illegal on
+            // line topology, so coincident geometry slightly wins)
+            depth_stencil: Some(wgpu::DepthStencilState {
+                depth_write_enabled: Some(false),
                 ..depth_state
             }),
             multisample: wgpu::MultisampleState::default(),
@@ -189,14 +251,43 @@ impl SceneRenderer {
             render_state,
             terrain_pipeline,
             water_pipeline,
+            line_pipeline,
             globals_buf,
             globals_bind,
             water_vbuf,
+            lines_vbuf: None,
+            lines_capacity: 0,
+            lines_count: 0,
             chunks: HashMap::new(),
             color: None,
             depth: None,
             size: (0, 0),
             texture_id: None,
+        }
+    }
+
+    /// Replace the overlay line set for this frame (bone skeletons, grids).
+    pub fn set_lines(&mut self, lines: &[LineVertex]) {
+        self.lines_count = lines.len() as u32;
+        if lines.is_empty() {
+            return;
+        }
+        let device = &self.render_state.device;
+        let queue = &self.render_state.queue;
+        match &self.lines_vbuf {
+            Some(buf) if self.lines_capacity >= lines.len() => {
+                queue.write_buffer(buf, 0, bytemuck::cast_slice(lines));
+            }
+            _ => {
+                self.lines_vbuf = Some(device.create_buffer_init(
+                    &wgpu::util::BufferInitDescriptor {
+                        label: Some("overlay lines"),
+                        contents: bytemuck::cast_slice(lines),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    },
+                ));
+                self.lines_capacity = lines.len();
+            }
         }
     }
 
@@ -376,9 +467,24 @@ impl SceneRenderer {
                 pass.draw_indexed(0..chunk.index_count, 0, 0..1);
             }
 
-            pass.set_pipeline(&self.water_pipeline);
-            pass.set_vertex_buffer(0, self.water_vbuf.slice(..));
-            pass.draw(0..6, 0..1);
+            if self.lines_count > 0
+                && let Some(lines) = &self.lines_vbuf
+            {
+                pass.set_pipeline(&self.line_pipeline);
+                pass.set_vertex_buffer(
+                    0,
+                    lines.slice(
+                        ..(self.lines_count as u64 * std::mem::size_of::<LineVertex>() as u64),
+                    ),
+                );
+                pass.draw(0..self.lines_count, 0..1);
+            }
+
+            if params.water {
+                pass.set_pipeline(&self.water_pipeline);
+                pass.set_vertex_buffer(0, self.water_vbuf.slice(..));
+                pass.draw(0..6, 0..1);
+            }
         }
         queue.submit([encoder.finish()]);
     }
