@@ -42,13 +42,16 @@ it is explicitly not exhaustive.
 - [ ] Per-room entity spawn sets
 - [ ] Export: scene TOML (`[[entities]]` + `[[includes]]`) bestow loads directly
 
-## Placement mode
+## Placement mode (shipped, evolving)
 
-- [ ] Load an exported island/dungeon as the ground
-- [ ] Place entity templates with snap-to-terrain + rotation/scale gizmos
+- [x] Load an exported island as the ground (`.hgt.toml` import)
+- [x] Place entity templates with snap-to-terrain, yaw, tags
+- [x] Export: `[[entities]]` scene TOML blocks; `.wrightscene` projects
+- [ ] Undo/redo for place/move/delete
+- [ ] Template palette read from a bestow game's `templates/*.toml`
 - [ ] Spawner volumes: tags, counts, radii
 - [ ] Scatter brush (foliage/props density painting)
-- [ ] Export: `[[entities]]` scene TOML blocks / full `.scene.toml`
+- [ ] Dungeon grounds (once dungeon mode ships)
 
 ## Cross-cutting
 

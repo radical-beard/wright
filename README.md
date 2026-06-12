@@ -45,6 +45,15 @@ via their `.hgt.toml`.
 - Metadata saves as `.wrightanim` (TOML) and exports as bestow
   `<model>.anim.toml`
 
+**Placement mode** — arrange entities on exported islands:
+
+- Load any exported island as the ground, click terrain to place entity
+  templates (snapped to the surface), with a recent-template palette
+- Per-entity name / template / tags / yaw editing; flag-pole markers with
+  yaw direction ticks; click markers to select
+- Exports bestow `[[entities]]` scene TOML blocks; projects save as
+  `.wrightscene`
+
 ## Controls
 
 | Input | Action |
