@@ -1,0 +1,15 @@
+[package]
+name = "wright-bestow"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Export wright documents into bestow's on-disk formats"
+
+[dependencies]
+wright-field.workspace = true
+png.workspace = true
+uuid.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

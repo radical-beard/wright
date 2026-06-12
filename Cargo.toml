@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/wright-field",
+    "crates/wright-bestow",
+    "crates/wright-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+wright-field = { path = "crates/wright-field" }
+wright-bestow = { path = "crates/wright-bestow" }
+glam = "0.33"
+serde = { version = "1", features = ["derive"] }
+toml = "1"
+png = "0.18"
+uuid = { version = "1", features = ["v7"] }
+anyhow = "1"
+thiserror = "2"
+log = "0.4"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

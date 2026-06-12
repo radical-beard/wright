@@ -1,0 +1,27 @@
+[package]
+name = "wright-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "wright — the standalone editor that exports into bestow"
+
+[[bin]]
+name = "wright"
+path = "src/main.rs"
+
+[dependencies]
+wright-field.workspace = true
+wright-bestow.workspace = true
+eframe = { version = "0.34", default-features = false, features = ["wgpu", "default_fonts", "wayland", "x11"] }
+glam.workspace = true
+serde.workspace = true
+toml.workspace = true
+anyhow.workspace = true
+log.workspace = true
+env_logger = "0.11"
+bytemuck = { version = "1", features = ["derive"] }
+rfd = "0.17"
+dirs = "6"
+
+[dev-dependencies]
+tempfile = "3"
