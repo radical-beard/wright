@@ -1,0 +1,18 @@
+[package]
+name = "wright-dungeon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Dungeon document: cell-grid authoring, shell mesh generation, glb + bestow scene export"
+
+[dependencies]
+glam.workspace = true
+serde.workspace = true
+toml.workspace = true
+anyhow.workspace = true
+serde_json = "1"
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+gltf = "1.4"

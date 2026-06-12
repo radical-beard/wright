@@ -301,6 +301,23 @@ impl SceneRenderer {
         }
     }
 
+    /// Replace the whole scene with arbitrary mesh slices (dungeon shells)
+    /// drawn through the terrain pipeline — slices are pre-tinted via the
+    /// vertex `tint`/`material` fields. Keyed by slice index.
+    pub fn set_custom_mesh(&mut self, slices: Vec<(Vec<Vertex>, Vec<u32>)>) {
+        self.chunks.clear();
+        for (i, (vertices, indices)) in slices.into_iter().enumerate() {
+            if indices.is_empty() {
+                continue;
+            }
+            self.upload_chunk(ChunkMesh {
+                coord: (usize::MAX - i, usize::MAX),
+                vertices,
+                indices,
+            });
+        }
+    }
+
     /// Re-mesh and re-upload only the chunks a dirty region touches.
     pub fn upload_region(&mut self, field: &Heightfield, masks: &Masks, region: Region) {
         let mesher = Mesher::new(field);

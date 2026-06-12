@@ -35,12 +35,19 @@ it is explicitly not exhaustive.
 - [ ] FBX import via ufbx (bestow D-012 parity)
 - [ ] Blend-tree / animgraph authoring → `.animgraph.toml`
 
-## Dungeon mode
+## Dungeon mode (shipped, evolving)
 
-- [ ] Grid room/corridor layout with prefab piece palette
-- [ ] Door/connection graph with lock-and-key annotations
-- [ ] Per-room entity spawn sets
-- [ ] Export: scene TOML (`[[entities]]` + `[[includes]]`) bestow loads directly
+- [x] Grid floor painting (multi-storey), auto-generated shell with doorways
+- [x] Doors on edges with lock-and-key annotations (open / locked / boss)
+- [x] Entity + marker placement, live validation, 3D dollhouse preview
+- [x] Export: ONE self-contained `assets/dungeons/<name>/` folder (scene +
+      shell glb with trimesh collision + door template + sidecars)
+- [ ] Stairs / inter-storey geometry (markers + teleport pattern works today)
+- [ ] Prefab room stamps (L-rooms, circular chambers)
+- [ ] Wall material/tint painting on the shell
+- [ ] Torch/point-light placement (bestow caps 8 active lights; needs the
+      nearest-N light culling engine change first)
+- [ ] Water/pit/hazard cells
 
 ## Placement mode (shipped, evolving)
 

@@ -3930,6 +3930,7 @@ dependencies = [
  "toml",
  "wright-anim",
  "wright-bestow",
+ "wright-dungeon",
  "wright-field",
 ]
 
@@ -3944,6 +3945,20 @@ dependencies = [
  "toml",
  "uuid",
  "wright-field",
+]
+
+[[package]]
+name = "wright-dungeon"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "glam",
+ "gltf",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
+ "uuid",
 ]
 
 [[package]]

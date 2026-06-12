@@ -45,6 +45,20 @@ via their `.hgt.toml`.
 - Metadata saves as `.wrightanim` (TOML) and exports as bestow
   `<model>.anim.toml`
 
+**Dungeon mode** — Zelda-scale dungeons as single drop-in asset folders:
+
+- Paint walkable cells on a grid (multi-storey), erase, place doors on
+  edges between floor cells — open / locked-with-key / boss — and place
+  entities (templates or tag-only markers like `player_spawn`)
+- Live 3D shell preview: walls auto-generated at floor↔empty boundaries
+  with real doorway openings; backface culling gives a dollhouse view from
+  above; live validation (door adjacency, missing keys, missing spawn)
+- Exports ONE self-contained folder under `assets/dungeons/<name>/`:
+  scene TOML + shell `.glb` (visuals AND trimesh collision) + a
+  path-qualified door template + UUIDv7 sidecars. Play it with
+  `scene.load("assets/dungeons/<name>/<name>.scene.toml")` — enter, exit,
+  re-enter, and same-frame resets all verified against a live bestow
+
 **Placement mode** — arrange entities on exported islands:
 
 - Load any exported island as the ground, click terrain to place entity

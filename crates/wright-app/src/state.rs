@@ -9,6 +9,9 @@ use std::path::PathBuf;
 pub struct AppState {
     pub last_project: Option<PathBuf>,
     pub last_export_dir: Option<PathBuf>,
+    /// The game's `assets/dungeons` directory dungeons export into.
+    #[serde(default)]
+    pub last_dungeon_dir: Option<PathBuf>,
 }
 
 fn state_path() -> Option<PathBuf> {

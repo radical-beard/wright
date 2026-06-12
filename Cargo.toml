@@ -4,6 +4,7 @@ members = [
     "crates/wright-field",
     "crates/wright-anim",
     "crates/wright-bestow",
+    "crates/wright-dungeon",
     "crates/wright-app",
 ]
 
@@ -16,6 +17,7 @@ license = "MIT OR Apache-2.0"
 wright-field = { path = "crates/wright-field" }
 wright-anim = { path = "crates/wright-anim" }
 wright-bestow = { path = "crates/wright-bestow" }
+wright-dungeon = { path = "crates/wright-dungeon" }
 glam = "0.33"
 serde = { version = "1", features = ["derive"] }
 toml = "1"

@@ -3,6 +3,7 @@
 //! is the visualizer); wright is where humans sculpt.
 
 mod anim;
+mod dungeon;
 mod island;
 mod modes;
 mod placement;
@@ -10,6 +11,7 @@ mod render;
 mod state;
 
 use anim::AnimMode;
+use dungeon::DungeonMode;
 use eframe::egui;
 use island::IslandMode;
 use modes::ModeId;
@@ -36,6 +38,7 @@ struct WrightApp {
     state: AppState,
     island: IslandMode,
     anim: AnimMode,
+    dungeon: DungeonMode,
     placement: PlacementMode,
     active: ModeId,
 }
@@ -49,11 +52,13 @@ impl WrightApp {
         let state = AppState::load();
         let island = IslandMode::new(render_state.clone(), &state);
         let anim = AnimMode::new(render_state.clone());
+        let dungeon = DungeonMode::new(render_state.clone());
         let placement = PlacementMode::new(render_state);
         Self {
             state,
             island,
             anim,
+            dungeon,
             placement,
             active: ModeId::Island,
         }
@@ -80,8 +85,8 @@ impl eframe::App for WrightApp {
         match self.active {
             ModeId::Island => self.island.update(ui, &mut self.state),
             ModeId::Animation => self.anim.update(ui, &mut self.state),
+            ModeId::Dungeon => self.dungeon.update(ui, &mut self.state),
             ModeId::Placement => self.placement.update(ui, &mut self.state),
-            other => modes::stub_panel(ui, other),
         }
     }
 }
