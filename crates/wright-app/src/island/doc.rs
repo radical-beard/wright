@@ -82,6 +82,20 @@ impl IslandDoc {
         }
     }
 
+    /// Wrap an imported field + masks (bestow island re-edit) as a fresh,
+    /// unsaved document.
+    pub fn from_parts(name: &str, field: Heightfield, masks: Masks) -> Self {
+        Self {
+            name: name.to_string(),
+            field,
+            masks,
+            project_dir: None,
+            dirty_since_save: true,
+            undo: Vec::new(),
+            redo: Vec::new(),
+        }
+    }
+
     /// Snapshot the stroke's dirty region *before* it ran (`pre` was taken at
     /// stroke begin over the whole field) and record an undo entry.
     pub fn commit_stroke(&mut self, pre_field: &Heightfield, pre_masks: &Masks, region: Region) {

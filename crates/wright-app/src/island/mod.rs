@@ -259,6 +259,9 @@ impl IslandMode {
             if let Some(dir) = &self.doc.project_dir {
                 ui.label(RichText::new(dir.display().to_string()).weak().small());
             }
+            if ui.button("Import bestow island…").clicked() {
+                self.import_bestow_island(state);
+            }
 
             ui.add_space(12.0);
             ui.separator();
@@ -540,6 +543,28 @@ impl IslandMode {
                 state.save();
             }
             Err(e) => self.status = format!("Save failed: {e:#}"),
+        }
+    }
+
+    /// Re-edit an island that already lives in a bestow game (including ones
+    /// originally dumped from argh): pick its `.hgt.toml`.
+    fn import_bestow_island(&mut self, state: &mut AppState) {
+        let mut dlg = rfd::FileDialog::new()
+            .set_title("Import bestow island (pick the .hgt.toml)")
+            .add_filter("island metadata", &["toml"]);
+        if let Some(d) = &state.last_export_dir {
+            dlg = dlg.set_directory(d);
+        }
+        let Some(path) = dlg.pick_file() else { return };
+        match wright_bestow::import_island(&path) {
+            Ok((field, masks, name)) => {
+                self.camera = OrbitCamera::for_island(field.world_size());
+                self.doc = doc::IslandDoc::from_parts(&name, field, masks);
+                self.needs_full_upload = true;
+                self.export.last_report = None;
+                self.status = format!("Imported {} — save it as a .wright project", path.display());
+            }
+            Err(e) => self.status = format!("Import failed: {e:#}"),
         }
     }
 

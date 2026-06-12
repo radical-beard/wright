@@ -263,6 +263,83 @@ pub fn read_png16(path: &Path) -> Result<(Vec<f32>, u32, u32)> {
     Ok((samples, info.width, info.height))
 }
 
+/// Decode an 8-bit PNG to RGB triples (accepts RGB or RGBA, drops alpha).
+fn read_png_rgb8(path: &Path) -> Result<(Vec<[u8; 3]>, u32, u32)> {
+    let decoder = png::Decoder::new(std::io::BufReader::new(fs::File::open(path)?));
+    let mut reader = decoder.read_info()?;
+    let mut buf = vec![0u8; reader.output_buffer_size().context("png too large")?];
+    let info = reader.next_frame(&mut buf)?;
+    anyhow::ensure!(
+        info.bit_depth == png::BitDepth::Eight,
+        "expected 8-bit PNG, got {:?}",
+        info.bit_depth
+    );
+    let stride = match info.color_type {
+        png::ColorType::Rgb => 3,
+        png::ColorType::Rgba => 4,
+        other => anyhow::bail!("expected RGB(A) PNG, got {other:?}"),
+    };
+    let rgb = buf[..info.buffer_size()]
+        .chunks_exact(stride)
+        .map(|c| [c[0], c[1], c[2]])
+        .collect();
+    Ok((rgb, info.width, info.height))
+}
+
+/// Re-import a bestow island for editing: reads `<stem>.hgt.toml` +
+/// `<stem>.hgt.png` (and `.ctl.png` / `.color.png` when present, including
+/// islands originally dumped from argh by `scripts/argh_dump_terrain.py`).
+/// Pass the path to the `.hgt.toml`.
+pub fn import_island(hgt_toml: &Path) -> Result<(Heightfield, Masks, String)> {
+    let stem = hgt_toml
+        .file_name()
+        .and_then(|n| n.to_str())
+        .and_then(|n| n.strip_suffix(".hgt.toml"))
+        .context("expected a `<name>.hgt.toml` file")?
+        .to_string();
+    let dir = hgt_toml.parent().context("no parent dir")?;
+
+    let meta: toml::Value = toml::from_str(&fs::read_to_string(hgt_toml)?)?;
+    let num = |k: &str| -> Result<f64> {
+        meta.get(k)
+            .and_then(|v| v.as_float().or(v.as_integer().map(|i| i as f64)))
+            .with_context(|| format!("{}: missing `{k}`", hgt_toml.display()))
+    };
+    let (w_meta, h_meta) = (num("width")? as u32, num("height")? as u32);
+    let (size_x, size_z) = (num("world_size_x")? as f32, num("world_size_z")? as f32);
+    let (hmin, hmax) = (num("height_min")? as f32, num("height_max")? as f32);
+    anyhow::ensure!(
+        w_meta == h_meta && (size_x - size_z).abs() < 1e-3,
+        "wright edits square islands; {stem} is {w_meta}x{h_meta} over {size_x}x{size_z} m"
+    );
+
+    let (norm, w, h) = read_png16(&dir.join(format!("{stem}.hgt.png")))?;
+    anyhow::ensure!(
+        w == h && w == w_meta,
+        "hgt.png is {w}x{h}, metadata says {w_meta}"
+    );
+    let range = hmax - hmin;
+    let heights = norm.iter().map(|&n| hmin + n * range).collect();
+    let field = Heightfield::from_heights(w as usize, size_x, heights);
+
+    let mut masks = Masks::new(w as usize);
+    if let Ok((ctl, cw, ch)) = read_png_rgb8(&dir.join(format!("{stem}.ctl.png")))
+        && (cw, ch) == (w, h)
+    {
+        for (i, px) in ctl.iter().enumerate() {
+            masks.rockness[i] = px[0];
+            masks.autoshader[i] = px[1];
+        }
+    }
+    if let Ok((color, cw, ch)) = read_png_rgb8(&dir.join(format!("{stem}.color.png")))
+        && (cw, ch) == (w, h)
+    {
+        masks.tint = color;
+    }
+
+    Ok((field, masks, stem))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -340,6 +417,29 @@ mod tests {
             fs::read_to_string(&sc).unwrap(),
             "uuid must not churn"
         );
+    }
+
+    #[test]
+    fn export_import_roundtrip() {
+        let (mut f, mut m) = sculpted();
+        m.rockness[500] = 180;
+        m.autoshader[500] = 40;
+        m.tint[500] = [200, 100, 50];
+        f.set(3, 3, -1.25);
+        let dir = tempfile::tempdir().unwrap();
+        let report = export_island(&f, &m, &ExportOptions::new("rt2", dir.path())).unwrap();
+
+        let (fi, mi, name) = import_island(&dir.path().join("rt2.hgt.toml")).unwrap();
+        assert_eq!(name, "rt2");
+        assert_eq!(fi.resolution(), f.resolution());
+        assert_eq!(fi.world_size(), f.world_size());
+        let tol = (report.height_max - report.height_min) / 65535.0 * 2.0;
+        for (a, b) in fi.heights().iter().zip(f.heights()) {
+            assert!((a - b).abs() < tol, "{a} vs {b}");
+        }
+        assert_eq!(mi.rockness[500], 180);
+        assert_eq!(mi.autoshader[500], 40);
+        assert_eq!(mi.tint[500], [200, 100, 50]);
     }
 
     #[test]
